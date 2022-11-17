@@ -4,9 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MyChartDef
+namespace EthanChart.CLS
 {
-    public class Class1
+    public interface ISelectWork
     {
+        void Selected();
+        void Released();
     }
 }

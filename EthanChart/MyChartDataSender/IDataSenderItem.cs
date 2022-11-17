@@ -13,16 +13,6 @@ namespace MyChartDataSender
         string[] ItemList(string keyName);
     }
 
-    public interface ISeriesData
-    {
-        /// <summary>
-        /// Length == IDataSenderItem - KeyNames Length,
-        /// Array Index == IDataSenderItem - KeyName - ItemList Array Index
-        /// </summary>
-        int[] Indices { get; }
-        Action<double> ValueReceived { get; }
-    }
-
     public interface IDataSender
     {
         bool ConfigItem();

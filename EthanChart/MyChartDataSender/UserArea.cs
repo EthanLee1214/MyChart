@@ -4,85 +4,45 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EthChartDef;
 
 namespace MyChartDataSender
 {
-    public enum AxisData
-    {
-        CommandPos,
-        ActualPos,
-        CommandVelocity,
-        ActualVelocity,
-    }
-
-    public class DataSenderAxisItem : IDataSenderItem
-    {
-        public int KeyCount { get; private set; }
-
-        /// <summary>
-        /// Head Name, Item Names
-        /// </summary>
-        Dictionary<string, string[]> senderItems { get; }
-
-        public string[] KeyNames => senderItems.Keys.ToArray();
-
-        public DataSenderAxisItem()
-        {
-            senderItems = new Dictionary<string, string[]>();
-
-            var axisItem = new string[8];
-            for (int i = 0; i < 8; i++)
-            {
-                axisItem[i] = "Axis " + i.ToString("00");
-            }
-            senderItems.Add("Axis", axisItem);
-            senderItems.Add(nameof(AxisData), Enum.GetNames(typeof(AxisData)));
-
-            KeyCount = senderItems.Count;
-        }
-
-        public string[] ItemList(string keyName)
-        {
-            if (senderItems.ContainsKey(keyName))
-            {
-                return senderItems[keyName];
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        public void Update()
-        {
-            
-        }
-    }
-
     public class SenderConfig
     {
+        
+    }
+
+    public class DataSender : IDataSenderForUser
+    {
+        public event Action Starting;
+        public event Action Done;
+
         byte maxLevel;
         byte[] _lvItemCount;
-        LevelItem a;
-        IDataSenderItem senderItem;
+        
         Thread tUpdate;
-        bool bUpdate;
+        bool bUpdate = false;
+
+        public SenderListlItem ListItem { get; private set; }
 
         public ushort UpdateTime_ms { get; private set; }
-        public bool IsOpen => senderItem != null;
+        public bool IsOpen => UserSender != null;
         public bool IsConfigReady { get; private set; }
         public bool IsConfig { get; private set; }
-        
-        public bool Open(IDataSenderItem senderItem)
+        public UserDefSender UserSender { get; private set; }
+
+        public bool Open(UserDefSender userSender)
         {
-            if (senderItem == null) return false;
+            if (userSender == null) return false;
 
-            this.senderItem = senderItem;
-            var keyName = senderItem.KeyNames;
+            this.UserSender = userSender;
+            this.UserSender.DataSender = this;
+            var keyName = userSender.KeyNames;
 
-            if (keyName == null || keyName.Length == 0)            
+            if (keyName == null || keyName.Length == 0)
             {
-                this.senderItem = null;
+                this.UserSender = null;
                 return false;
             }
 
@@ -91,17 +51,41 @@ namespace MyChartDataSender
 
             for (int i = 0; i < maxLevel; i++)
             {
-                _lvItemCount[i] = (byte)(senderItem.ItemList(keyName[i]).Length);
+                _lvItemCount[i] = (byte)(userSender.ItemList(keyName[i]).Length);
                 if (_lvItemCount[i] == 0)
                 {
-                    this.senderItem = null;
+                    this.UserSender = null;
                     return false;
                 }
             }
             return true;
         }
+
+        public void Close()
+        {
+            bUpdate = false;
+            if (tUpdate != null)
+            {
+                if (tUpdate.IsAlive)
+                {
+                    tUpdate.Join(250);
+                }
+
+                tUpdate = null;
+            }
+
+            IsConfigReady = false;
+            IsConfig = false;
+
+            Starting = null;
+            Done = null;
+            maxLevel = 0;
+            _lvItemCount = null;
+            UserSender = null;                        
+            ListItem = null;
+        }
         
-        public bool Config(List<ISeriesData> seriesList)
+        public bool ConfigSeries(IList<ISeriesData> seriesList)
         {
             if (seriesList == null) return false;
             if (seriesList.Count == 0) return false;
@@ -137,6 +121,8 @@ namespace MyChartDataSender
                 UpdateTime_ms = updateTime_ms;
             }
 
+            if (Starting != null) Starting();
+
             tUpdate = new Thread(Update);
             tUpdate.IsBackground = true;
             bUpdate = true;
@@ -149,9 +135,15 @@ namespace MyChartDataSender
             bUpdate = false;
         }
 
-        public void Update()
+        private void Update()
         {
+            while(bUpdate)
+            {
+                UserSender.Update();
+                Thread.Sleep(UpdateTime_ms);
+            }
 
+            if (Done != null) Done();
         }
 
         public void Set(double value, params int[] index)
@@ -159,17 +151,17 @@ namespace MyChartDataSender
             if (!IsConfig) return;
             if (index == null || index.Length != maxLevel) return;
 
-            LevelItem ab = a;
-            for (int i = 0; i < maxLevel; i++)
+            var listItem = ListItem;
+            for (int i = 0; i <= maxLevel; i++)
             {
-                if (i != maxLevel - 1)
+                if (i != maxLevel)
                 {
-                    ab = GetSub(ab, index[i]);
-                    if (ab == null) break;
+                    listItem = GetSub(listItem, index[i]);
+                    if (listItem == null) break;
                 }
                 else
                 {
-                    ab.Set(value);
+                    listItem.Set(value);
                 }
             }
         }
@@ -180,7 +172,7 @@ namespace MyChartDataSender
         {
             if (!IsOpen) return;
 
-            if (a == null) a = new LevelItem(-1, _lvItemCount[0]);
+            ListItem = new SenderListlItem(-1, _lvItemCount[0]);
             IsConfigReady = true;
             IsConfig = false;
         }
@@ -195,17 +187,17 @@ namespace MyChartDataSender
                 return;
             }
 
-            LevelItem _a = a;
+            var listItem = ListItem;
             for (int i = 0; i < maxLevel; i++)
             {
                 if (i != maxLevel - 1)
                 {
-                    CreateInst(_a, index[i], _lvItemCount[i + 1]);
-                    _a = _a[index[i]];
+                    CreateInst(listItem, index[i], _lvItemCount[i + 1]);
+                    listItem = listItem[index[i]];
                 }
                 else
                 {
-                    CreateInst(_a, index[i], act);
+                    CreateInst(listItem, index[i], act);
                 }
             }
         }
@@ -219,13 +211,13 @@ namespace MyChartDataSender
             }
         }        
 
-        private void CreateInst(LevelItem ab, int abIndex, byte count)
+        private void CreateInst(SenderListlItem item, int index, byte count)
         {
-            if (ab[abIndex] == null)
+            if (item[index] == null)
             {
                 if (count > 0)
                 {
-                    ab[abIndex] = new LevelItem(abIndex, count);
+                    item[index] = new SenderListlItem(index, count);
                 }
                 else
                 {
@@ -234,50 +226,18 @@ namespace MyChartDataSender
             }
         }
 
-        private void CreateInst(LevelItem ab, int abIndex, Action<double> act)
+        private void CreateInst(SenderListlItem item, int index, Action<double> act)
         {
-            if (ab[abIndex] == null)
+            if (item[index] == null)
             {
-                ab[abIndex] = new LevelItem(abIndex, act);
+                item[index] = new SenderListlItem(index, act);
             }
         }
 
-        private LevelItem GetSub(LevelItem main, int index)
+        private SenderListlItem GetSub(SenderListlItem main, int index)
         {
             if (main[index] != null) return main[index];
             else return null;
-        }
-    }
-
-    internal class LevelItem
-    {
-        LevelItem[] items;
-        public int Index { get; private set; }
-        public LevelItem this[int inx]
-        {
-            get => items[inx];
-            set => items[inx] = value;
-        }
-        Action<double> act;
-
-        public LevelItem(int index, Action<double> act)
-        {
-            this.Index = index;
-            this.act = act;
-        }
-
-        public LevelItem(int index, int itemCount)
-        {
-            this.Index = index;
-            items = new LevelItem[itemCount];
-        }
-
-        public void Set(double val)
-        {
-            if (act != null)
-            {
-                act(val);
-            }
         }
     }
 }

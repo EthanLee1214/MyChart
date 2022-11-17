@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Data;
+using EthChartDef;
 
 namespace MyChartDataSender
 {
@@ -22,7 +23,7 @@ namespace MyChartDataSender
 
         public MyDataSender()
         {
-            senderItem = new DataSenderAxisItem();
+            
             _dt = new DataTable();
 
             var keys = senderItem.KeyNames;
@@ -40,11 +41,11 @@ namespace MyChartDataSender
             _dt.Columns.Add(ValueCmn, typeof(double));
         }
 
-        public bool ConfigItem(List<ISeriesData> seriesList)
+        public bool ConfigItem(IList<ISeriesData> seriesList)
         {
             _dt.Rows.Clear();
 
-            for (int i = 0; i < seriesList.Count; i++)
+            for (int i = 0; i < seriesList.Count(); i++)
             {
                 var row = _dt.Rows.Add();
 

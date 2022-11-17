@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:EthanChart"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary Source="CommonDictionary.xaml"/>
     </Application.Resources>
 </Application>

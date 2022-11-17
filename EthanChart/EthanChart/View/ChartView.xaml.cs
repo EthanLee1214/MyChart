@@ -1,5 +1,4 @@
-﻿using EthanChart.ViewModel;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,16 +13,16 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace EthanChart
+namespace EthanChart.View
 {
     /// <summary>
-    /// MainWindow.xaml에 대한 상호 작용 논리
+    /// ChartView.xaml에 대한 상호 작용 논리
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class ChartView : UserControl
     {
-        public MainWindow()
+        public ChartView()
         {
-            InitializeComponent();            
+            InitializeComponent();
         }
     }
 }
