@@ -13,12 +13,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 
 using EthanChart.CLS;
+using EthChartDef.App;
 
 namespace EthanChart.ViewModel
 {
     public class SeriesViewModel : ViewModelBase, ISelectWork
-    {
-        ChartProxy cp;
+    {   
+        ChartProxy<SenderSeries> cp;
 
         ObservableCollection<SeriesItem> series;
         public ObservableCollection<SeriesItem> Series
@@ -69,16 +70,24 @@ namespace EthanChart.ViewModel
 
         public SeriesViewModel()
         {
-            cp = ChartProxy.Inst;
+            cp = ChartProxy<SenderSeries>.Inst;
             series = new ObservableCollection<SeriesItem>();            
         }
 
         public void Selected()
         {
-            if (!cp.IsOpen)
+            if (!cp.IsUserSenderSet)
             {
-                cp.LoadUserDefDLL();
-                headItem = cp.UDS.KeyNames;
+                string dllName = Environment.CurrentDirectory + "\\UserChartSender_WMX.dll";
+                if (cp.LoadUserDefDLL(dllName))
+                {
+                    headItem = cp.UDS.KeyNames;
+                }
+                else
+                {
+                    headItem = null;
+                }
+                
 
                 OnPropertyChanged(nameof(HeadText1));
                 OnPropertyChanged(nameof(HeadText2));
@@ -170,7 +179,7 @@ namespace EthanChart.ViewModel
 
         public SeriesItem()
         {
-            val = new int[ChartProxy.Inst.UDS.KeyCount];
+            val = new int[ChartProxy<SenderSeries>.Inst.UDS.KeyCount];
             Clear();
         }
 
@@ -183,7 +192,5 @@ namespace EthanChart.ViewModel
         {
             return String.Format("{0} - {1} - {2}", Index1, Index2, Index3);
         }
-    }
-
-    
+    }    
 }

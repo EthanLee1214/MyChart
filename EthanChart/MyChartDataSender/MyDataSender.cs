@@ -4,76 +4,194 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Data;
-using EthChartDef;
+
+using EthChartDef.Sender;
+using EthChartDef.User;
+using EthChartDef.App;
 
 namespace MyChartDataSender
 {
-    public class MyDataSender
+    public partial class DataSender
     {
-        readonly string NameCmn = "Name";
-        readonly string ValueCmn = "Value";
+        public event Action Starting;
+        public event Action Done;
 
-        DataTable _dt;
-        IDataSenderItem senderItem;
+        byte maxLevel;
+        byte[] _lvItemCount;
+
         Thread tUpdate;
-        bool bUpdateFlag = false;
+        bool bUpdate = false;
+
+        public UserDefSender UserSender { get; private set; }        
+
         public ushort UpdateTime_ms { get; private set; }
+        
+        public bool IsConfigReady { get; private set; }
+        public bool IsConfig { get; private set; }        
 
-        public IDataSenderItem SenderItem => senderItem;
-
-        public MyDataSender()
+        private void Update()
         {
-            
-            _dt = new DataTable();
-
-            var keys = senderItem.KeyNames;
-            var keyCmn = new List<DataColumn>(keys.Length);
-
-            for (int i = 0; i < keys.Length; i++)
+            while (bUpdate)
             {
-                var cmn = new DataColumn();
-                cmn.ColumnName = keys[i];
-                cmn.DataType = typeof(int);
-                _dt.Columns.Add(cmn);
-                keyCmn.Add(cmn);
+                UserSender.Update();
+                Thread.Sleep(UpdateTime_ms);
             }
-            _dt.PrimaryKey = keyCmn.ToArray();
-            _dt.Columns.Add(ValueCmn, typeof(double));
+
+            if (Done != null) Done();
         }
 
-        public bool ConfigItem(IList<ISeriesData> seriesList)
+        private void StartConfig()
         {
-            _dt.Rows.Clear();
+            if (!IsOpen) return;
 
-            for (int i = 0; i < seriesList.Count(); i++)
+            ListItem = new SenderListItem(-1, _lvItemCount[0]);
+            IsConfigReady = true;
+            IsConfig = false;
+        }
+
+        private void Config(Action<double> act, params int[] index)
+        {
+            if (!IsConfigReady) return;
+
+            if (index == null || index.Length != maxLevel)
             {
-                var row = _dt.Rows.Add();
+                IsConfigReady = false;
+                return;
+            }
 
-                for (int key = 0; key < senderItem.KeyCount; key++)
+            var listItem = ListItem;
+            for (int i = 0; i < maxLevel; i++)
+            {
+                if (i != maxLevel - 1)
                 {
-                    try
-                    {
-                        row[key] = seriesList[i].Indices[key];
-                    }
-                    catch(Exception ex)
-                    {
-                        // 아마 Key 중복 예외
-                        return false;
-                    }
+                    CreateInst(listItem, index[i], _lvItemCount[i + 1]);
+                    listItem = listItem[index[i]];
+                }
+                else
+                {
+                    CreateInst(listItem, index[i], act);
+                }
+            }
+        }
+
+        private void EndConfig()
+        {
+            if (IsConfigReady)
+            {
+                IsConfigReady = false;
+                IsConfig = true;
+            }
+        }
+
+        private void CreateInst(SenderListItem item, int index, byte count)
+        {
+            if (item[index] == null)
+            {
+                if (count > 0)
+                {
+                    item[index] = new SenderListItem(index, count);
+                }
+                else
+                {
+
+                }
+            }
+        }
+
+        private void CreateInst(SenderListItem item, int index, Action<double> act)
+        {
+            if (item[index] == null)
+            {
+                item[index] = new SenderListItem(index, act);
+            }
+        }
+
+        private SenderListItem GetSub(SenderListItem main, int index)
+        {
+            if (main[index] != null) return main[index];
+            else return null;
+        }
+    }
+
+    public partial class DataSender : IDataSender
+    {   
+        public bool IsOpen => UserSender != null;
+        
+        public bool Open(UserDefSender userSender)
+        {
+            if (userSender == null) return false;
+
+            this.UserSender = userSender;
+            this.UserSender.DataSender = this;
+            var keyName = userSender.KeyNames;
+
+            if (keyName == null || keyName.Length == 0)
+            {
+                this.UserSender = null;
+                return false;
+            }
+
+            maxLevel = (byte)keyName.Length;
+            _lvItemCount = new byte[maxLevel];
+
+            for (int i = 0; i < maxLevel; i++)
+            {
+                _lvItemCount[i] = (byte)(userSender.ItemList(keyName[i]).Length);
+                if (_lvItemCount[i] == 0)
+                {
+                    this.UserSender = null;
+                    return false;
                 }
             }
             return true;
         }
 
+        public void Close()
+        {
+            bUpdate = false;
+            if (tUpdate != null)
+            {
+                if (tUpdate.IsAlive)
+                {
+                    tUpdate.Join(250);
+                }
+
+                tUpdate = null;
+            }
+
+            IsConfigReady = false;
+            IsConfig = false;
+
+            Starting = null;
+            Done = null;
+            maxLevel = 0;
+            _lvItemCount = null;
+            UserSender = null;
+            ListItem = null;
+        }
+
+        public bool ConfigSeries(IList<ISeriesData> seriesList)
+        {
+            if (seriesList == null) return false;
+            if (seriesList.Count == 0) return false;
+
+            StartConfig();
+            for (int i = 0; i < seriesList.Count; i++)
+            {
+                Config(seriesList[i].ValueReceived, seriesList[i].Indices);
+            }
+            EndConfig();
+            return true;
+        }
+
         /// <summary>
-        /// 
+        /// IsOpen==true여야 동작.
         /// </summary>
         /// <param name="updateTime_ms">10~1000</param>
         /// <returns></returns>
         public bool Start(ushort updateTime_ms = 50)
         {
-            if (_dt == null) return false;
-            if (_dt.Rows.Count == 0) return false;
+            if (!IsOpen) return false;
 
             if (updateTime_ms > 1000)
             {
@@ -86,26 +204,43 @@ namespace MyChartDataSender
             else
             {
                 UpdateTime_ms = updateTime_ms;
-            }            
+            }
+
+            if (Starting != null) Starting();
 
             tUpdate = new Thread(Update);
             tUpdate.IsBackground = true;
-            bUpdateFlag = true;
+            bUpdate = true;
             tUpdate.Start();
             return true;
         }
 
         public void Stop()
         {
-            bUpdateFlag = false;
+            bUpdate = false;
         }
+    }
 
-        private void Update()
+    public partial class DataSender : IDataSenderForUser
+    {
+        public SenderListItem ListItem { get; private set; }
+        public void Set(double value, params int[] index)
         {
-            while(bUpdateFlag)
-            {
+            if (!IsConfig) return;
+            if (index == null || index.Length != maxLevel) return;
 
-                Thread.Sleep(UpdateTime_ms);
+            var listItem = ListItem;
+            for (int i = 0; i <= maxLevel; i++)
+            {
+                if (i != maxLevel)
+                {
+                    listItem = GetSub(listItem, index[i]);
+                    if (listItem == null) break;
+                }
+                else
+                {
+                    listItem.Set(value);
+                }
             }
         }
     }

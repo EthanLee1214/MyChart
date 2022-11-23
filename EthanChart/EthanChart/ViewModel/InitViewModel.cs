@@ -5,8 +5,8 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-using EthChartDef;
-using MyChartDataSender;
+using EthChartDef.App;
+using EthChartDef.User;
 
 namespace EthanChart.ViewModel
 {
@@ -22,42 +22,6 @@ namespace EthanChart.ViewModel
                 dllName = value;
                 OnPropertyChanged();
             }
-        }
-
-        public void Start()
-        {
-            DLLName = @"C:\Users\HP\Desktop\MyPortfolio\MyChart\EthanChart\exe\x64\UserChartSender_WMX.dll";
-
-            var asm = Assembly.LoadFile(DLLName);
-            var types = asm.GetExportedTypes();
-
-            UserDefSender uds = null;
-
-            for (int i = 0; i < types.Length; i++)
-            {
-                if (types[i].BaseType == typeof(UserDefSender))
-                {
-                    uds = Activator.CreateInstance(types[i]) as UserDefSender;
-                    break;
-                }
-            }
-
-            DataSender ds = new DataSender();
-            ds.Open(uds);
-
-            var series = new List<ISeriesData>(4);
-            series.Add(new TempSeries(new int[] { 0, 0 }));
-            series.Add(new TempSeries(new int[] { 0, 1 }));
-            series.Add(new TempSeries(new int[] { 1, 0 }));
-            series.Add(new TempSeries(new int[] { 1, 1 }));
-            ds.ConfigSeries(series);
-
-            ds.Start();
-
-            System.Threading.Thread.Sleep(3000);
-
-            ds.Stop();
-            ;
         }
     }
 
@@ -86,6 +50,11 @@ namespace EthanChart.ViewModel
         {
             Indices = indices;
             ValueReceived = valueReceived;
+        }
+
+        public void Clear()
+        {
+
         }
     }
 }

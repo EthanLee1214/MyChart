@@ -59,8 +59,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ChartDataDef.cs" />
+    <Compile Include="App\ChartProxy.cs" />
+    <Compile Include="App\ISeriesData.cs" />
+    <Compile Include="Common.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Sender\IDataSender.cs" />
+    <Compile Include="Sender\IDataSenderForUser.cs" />
+    <Compile Include="Sender\SenderListItem.cs" />
+    <Compile Include="User\UserDefSender.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

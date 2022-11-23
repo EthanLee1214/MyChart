@@ -91,7 +91,6 @@ namespace EthanChart.ViewModel
                 OnPropertyChanged();
             }
         }
-
         public ObservableCollection<PageCLS> Pages
         {
             get => pages;

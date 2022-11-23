@@ -65,10 +65,6 @@
     <Reference Include="LiveCharts.Wpf, Version=0.9.7.0, Culture=neutral, PublicKeyToken=0bc1f845d1ebb8df, processorArchitecture=MSIL">
       <HintPath>..\packages\LiveCharts.Wpf.0.9.7\lib\net45\LiveCharts.Wpf.dll</HintPath>
     </Reference>
-    <Reference Include="MyChartDataSender, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\exe\x64\MyChartDataSender.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
@@ -92,7 +88,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="CLS\ChartProxy.cs" />
+    <Compile Include="CLS\SenderSeries.cs" />
     <Compile Include="CLS\ISelectWork.cs" />
     <Compile Include="Sub_WPFBaseAPI.cs" />
     <Compile Include="ViewModel\ChartViewModel.cs" />

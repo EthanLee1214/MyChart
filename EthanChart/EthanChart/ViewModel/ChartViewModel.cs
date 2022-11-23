@@ -17,13 +17,13 @@ using System.Windows.Input;
 using System.Threading;
 
 using EthanChart.CLS;
-using EthChartDef;
+using EthChartDef.App;
 
 namespace EthanChart.ViewModel
 {
     public class ChartViewModel : ViewModelBase, ISelectWork
-    {
-        ChartProxy cp;
+    {   
+        ChartProxy<SenderSeries> cp;
 
         public SeriesCollection Series { get; set; }
         public Func<double, string> XFommatter { get; set; }
@@ -33,8 +33,7 @@ namespace EthanChart.ViewModel
         public ChartViewModel()
         {
             Series = new SeriesCollection();
-
-            cp = ChartProxy.Inst;
+            cp = ChartProxy<SenderSeries>.Inst;
 
             XFommatter = val => Math.Round(val) + "ea";
             YFommatter = val => Math.Round(val) + "";
@@ -86,6 +85,8 @@ namespace EthanChart.ViewModel
         {
             get { return (this.clearCommand) ?? (this.clearCommand = new DelegateCommand(cp.ClearSeriesData)); }
         }
+
+        //--------- Debug -------------
 
         Random rd = new Random();
 
